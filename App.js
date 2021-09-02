@@ -1,120 +1,255 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- * @flow strict-local
- */
+//App.js
 
- import React from 'react';
- import type {Node} from 'react';
- import {
-   SafeAreaView,
-   ScrollView,
-   StatusBar,
-   StyleSheet,
-   Text,
-   useColorScheme,
-   View,
- } from 'react-native';
- 
- import {
-   Colors,
-   DebugInstructions,
-   Header,
-   LearnMoreLinks,
-   ReloadInstructions,
- } from 'react-native/Libraries/NewAppScreen';
- 
- const Section = ({children, title}): Node => {
-   const isDarkMode = useColorScheme() === 'dark';
-   return (
-     <View style={styles.sectionContainer}>
-       <Text
-         style={[
-           styles.sectionTitle,
-           {
-             color: isDarkMode ? Colors.white : Colors.black,
-           },
-         ]}>
-         {title}
-       </Text>
-       <Text
-         style={[
-           styles.sectionDescription,
-           {
-             color: isDarkMode ? Colors.light : Colors.dark,
-           },
-         ]}>
-         {children}
-       </Text>
-     </View>
-   );
- };
- 
- 
- const App: () => Node = () => {
-   const isDarkMode = useColorScheme() === 'dark';
- 
-   const backgroundStyle = {
-     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-   };
- 
-   return (
-     <SafeAreaView style={backgroundStyle}>
-       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-       <ScrollView
-         contentInsetAdjustmentBehavior="automatic"
-         style={backgroundStyle}>
-         <Header />
-         <View
-           style={{
-             backgroundColor: isDarkMode ? Colors.black : Colors.white,
-           }}>
-           <Section title="Step One">
-             Edit <Text style={styles.highlight}>App.js</Text> to change this
-             screen and then come back to see your edits.
-           </Section>
-           <Section title="Step Two">
-             Edit <Text style={styles.highlight}>App.js</Text> to change this
-             screen and then come back to see your edits.
-           </Section>
-           <Section title="See Your Changes">
-             <ReloadInstructions />
-           </Section>
-           <Section title="Debug">
-             <DebugInstructions />
-           </Section>
-           <Section title="Learn More">
-             Read the docs to discover what to do next:
-           </Section>
-           <LearnMoreLinks />
-         </View>
-       </ScrollView>
-     </SafeAreaView>
-   );
- };
- 
- const styles = StyleSheet.create({
-   sectionContainer: {
-     marginTop: 32,
-     paddingHorizontal: 24,
-   },
-   sectionTitle: {
-     fontSize: 34,
-     fontWeight: '600',
-   },
-   sectionDescription: {
-     marginTop: 8,
-     fontSize: 18,
-     fontWeight: '400',
-   },
-   highlight: {
-     fontWeight: '700',
-   },
- });
- 
- 
- 
- 
- export default App;
+import React from 'react';
+import { StyleSheet, Text, View, Image, TextInput,TouchableOpacity, ScrollView, ImageBackground} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Setting from './Setting.js';
+
+export default class App extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      dday: new Date(),
+      ddayTitle: '',
+      chatInput: '',
+      chatLog: [],
+      settingModal: false,
+      }
+  }
+
+  async UNSAFE_componentWillMount() {
+    try {
+      const ddayString = await AsyncStorage.getItem('@dday');
+      const chatLogString = await AsyncStorage.getItem('@chat');
+
+      if(chatLogString == null){
+        this.setState({chatLog: []});
+      } else {
+        const chatLog = JSON.parse(chatLogString);
+        this.setState({chatLog: chatLog});
+      }
+
+      if(ddayString === null){
+        this.setState(
+          {
+            dday: new Date(),
+            ddayTitle: '',
+          }
+        );
+      } else {
+        const dday = JSON.parse(ddayString);
+        this.setState(
+          {
+            dday: new Date(dday.date),
+            ddayTitle: dday.title,
+          }
+        );
+      }
+    } catch(e) {
+      console.log("ERR");
+    }
+}
+
+  //함수 작성
+  toggleSettingModal() {
+    this.setState({
+      settingModal: !this.state.settingModal
+    })
+  }
+
+  //함수 작성
+  settingHandler(title, date) {
+    this.setState({
+      ddayTitle: title,
+      dday: date,
+    });
+    this.toggleSettingModal();
+  }
+
+  //함수 작성
+  makeDateString() {
+    return this.state.dday.getFullYear() + '년 ' + (this.state.dday.getMonth()+1) + '월 ' + this.state.dday.getDate() + '일';
+  }
+
+  //함수 작성
+  makeRemainString() {
+    const distance = new Date().getTime() - this.state.dday.getTime();
+    console.log(new Date(), this.state.dday,distance / (1000 * 60 * 60 * 24) )
+    const remain = Math.floor(distance / (1000 * 60 * 60 * 24));
+    if(remain < 0) {
+      return 'D'+remain;
+    } else if (remain > 0) {
+      return 'D+'+remain;
+    } else if (remain === 0) {
+      return 'D-day';
+    }
+  }
+
+  chatHandler() {
+    this.setState({
+      chatLog: [ ...this.state.chatLog, this.makeDateString() + ' : ' + this.state.chatInput],
+      chatInput: '',
+    },async ()=>{
+      const chatLogString = JSON.stringify(this.state.chatLog);
+      await AsyncStorage.setItem('@chat', chatLogString);
+    });
+  }
+
+  //async 추가
+  async settingHandler(title, date) {
+    this.setState({
+      ddayTitle: title,
+      dday: date,
+    });
+    
+    //저장루틴 추가
+   try {
+     const dday = {
+       title: title,
+       date: date,
+     }
+     const ddayString = JSON.stringify(dday);
+     await AsyncStorage.setItem('@dday', ddayString);
+   } catch (e) {
+     console.log(e);
+   }
+    this.toggleSettingModal();
+  }
+
+  render() {
+    return (
+      <View style={styles.container}>
+        <ImageBackground
+          style={{width: '100%', height: '100%'}}
+          source={require('./images/background.png')}>
+
+        <View style={styles.settingView}>
+
+          <TouchableOpacity onPress={()=>this.toggleSettingModal()}>
+            <Image source={require('./icon/setting.png')}/>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.ddayView}>
+          <Text style={styles.titleText}>
+            {this.state.ddayTitle}까지
+          </Text>
+          <Text style={styles.ddayText}>
+            {this.makeRemainString()}
+          </Text>
+          <Text style={styles.dateText}>
+            {this.makeDateString()}
+          </Text>
+        </View>
+        <View style={styles.chatView}>
+          <ScrollView style={styles.chatScrollView}>
+            {this.state.chatLog.map((chat)=>{
+              return <Text style={styles.chat}>{chat}</Text>
+            })}
+          </ScrollView>
+          <View style={styles.chatControl}>
+            <TextInput
+              style={styles.chatInput}
+              value={this.state.chatInput}
+              onChangeText={(changedText)=>{
+                console.log(this.state.chatLog)
+                this.setState({chatInput: changedText})}
+              }
+            />
+            <TouchableOpacity
+              style={styles.sendButton}
+              onPress={()=>this.chatHandler()}> 
+              <Text>
+                전송
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+         { this.state.settingModal ? 
+            <Setting  
+              modalHandler={()=>this.toggleSettingModal()}
+              settingHandler={(title, date)=>this.settingHandler(title, date)}/> //settingHandler추가
+            : <></>}
+        </ImageBackground>
+        </View>
+    );
+  }
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  chat: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#4A4A4A',
+    margin: 2,
+  },
+  settingView: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    marginRight: '1%',
+  },
+  ddayView: {
+    flex: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  chatView: {
+    flex: 6,
+  },
+  titleText:{
+    alignSelf: 'flex-end',
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#4A4A4A',
+    marginRight: '15%',
+
+  },
+  ddayText: {
+    fontSize: 100,
+    fontWeight: 'bold',
+    color: '#4A4A4A',
+  },
+  dateText: {
+    alignSelf: 'flex-start',
+    fontSize: 21,
+    fontWeight: 'bold',
+    color: '#4A4A4A',
+    marginLeft: '15%',
+  },
+  sendButton:{
+    backgroundColor: 'rgb(97,99,250)',
+    height: 40,
+    width: 50,
+    borderRadius: 20,
+    padding: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 5
+  },
+  chatInput: {
+    backgroundColor: 'white',
+    width: '75%',
+    height: 40,
+    borderWidth: 1,
+    borderColor: '#a5a5a5',
+    borderRadius: 20
+  },
+  chatControl: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  chatScrollView: {
+    width: '90%',
+    margin: 10,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(201,201,201,0.7)',
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#a5a5a5',
+  }
+});
